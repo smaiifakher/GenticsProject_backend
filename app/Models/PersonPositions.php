@@ -8,4 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 class PersonPositions extends Model
 {
     use HasFactory;
+
+    protected $fillable = ['person', 'pos_x', 'pos_y', 'raw_data', 'timestamp'];
 }

@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      *
@@ -15,6 +14,11 @@ return new class extends Migration
     {
         Schema::create('person_positions', function (Blueprint $table) {
             $table->id();
+            $table->integer('person');
+            $table->float('pos_x')->nullable();
+            $table->float('pos_y')->nullable();
+            $table->string('raw_data',255)->nullable();
+            $table->string('timestamp');
             $table->timestamps();
         });
     }
