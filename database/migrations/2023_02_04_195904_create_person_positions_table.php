@@ -14,7 +14,8 @@ return new class extends Migration {
     {
         Schema::create('person_positions', function (Blueprint $table) {
             $table->id();
-            $table->integer('person');
+            $table->string('oid',255);
+            $table->string('person');
             $table->float('pos_x')->nullable();
             $table->float('pos_y')->nullable();
             $table->string('raw_data',255)->nullable();

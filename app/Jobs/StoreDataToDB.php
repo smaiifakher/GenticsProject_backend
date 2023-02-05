@@ -45,24 +45,36 @@ class StoreDataToDB implements ShouldQueue
 
         $filePath = Storage::disk('local')->path("public/Work_package/FilteredDataHuman");
 
-        $fopen = fopen($filePath, 'r');
-        $fread = fread($fopen, 1000000);
-        do {
+        $fopen     = fopen($filePath, 'r');
+        $size      = fstat($fopen)['size'];
+        $endOfFile = false;
+        while (!$endOfFile) {
+            $length  = min($size, 1000000);
+            $fread   = fread($fopen, $length);
             $matches = $this->useRegex($fread);
             foreach ($matches as $match) {
                 $count = count($match);
                 for ($i = 0; $i < $count - 1; $i++) {
                     $array     = substr($fread, $match[$i][1], $match[$i + 1][1] - ($match[$i][1]));
+                    $endOfFile = Str::endsWith($array, ']');
+                    if ($endOfFile) {
+                        $array = rtrim($array, ']');
+                    }
                     $string    = Str::endsWith($array, ',') ? rtrim($array, ',') : $array;
                     $json      = json_decode($string, true);
+                    if (!isset($json['timestamp']['$date']['$numberLong'])){
+                        dd($json,$fread,$matches);
+                    }
                     $timestamp = $json['timestamp']['$date']['$numberLong'];
+                    $oid       = $json['_id']['$oid'];
                     $instances = Arr::get($json, 'instances');
                     foreach ($instances as $person => $instance) {
                         $posX = Arr::get($instance, 'pos_x');
                         $posY = Arr::get($instance, 'pos_y');
                         PersonPositions::updateOrCreate([
                             'person'    => $person,
-                            'timestamp' => $timestamp
+                            'oid'       => $oid,
+                            'timestamp' => $timestamp,
                         ], [
                             'pos_x'    => $posX,
                             'pos_y'    => $posY,
@@ -72,10 +84,10 @@ class StoreDataToDB implements ShouldQueue
                 }
                 $nextOffset = $match[$count - 1][1];
             }
-            $fread = fread($fopen, 1000000);
-            dd($nextOffset);
-        } while (true);
-
+            fseek($fopen, $nextOffset ?? 0);
+            $size -= 1000000;
+        }
+dd($size);
         dd('hdhdhd');
     }
 
