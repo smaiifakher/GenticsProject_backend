@@ -62,10 +62,11 @@ class PersonPositionsController extends Controller
                                  ->toArray();
         $result = [];
         foreach ($query as $item) {
-            $formattedItem = [];
+            $formattedItem              = [];
             $formattedItem['timestamp'] = $item['timestamp'];
             $formattedItem['datetime']  = $item['datetime'];
-            $formattedItem['positions'] = explode(',', $item['positions']);
+            $positions                  = explode(',', $item['positions']);
+            $formattedItem['average']   = is_countable($positions) && count($positions) > 0 ? array_sum($positions) / count($positions) : 0;
             $details                    = explode(',', $item['details']);
             foreach ($details as $detail) {
                 $info                       = explode('|', $detail);
