@@ -105,7 +105,6 @@ class StoreDataToDB implements ShouldQueue
         $progress->finish();
         fclose($filePath);
         Storage::disk('local')->deleteDirectory('public/Work_package');
-        dd('end');
     }
 
 

@@ -7,13 +7,13 @@ if [ ! -f "$FILE" ]; then
 fi
 
 echo "Building docker image..."
-docker build -t="redq/php74-composer" .
+docker build -t="redq/php81-composer" .
 
 echo "Installing composer dependencies..."
 docker run --rm \
     -v $(pwd):/opt \
     -w /opt \
-    redq/php74-composer:latest \
+    redq/php81-composer:latest \
     composer install
 
 echo "Stopping running sail container if any..."
