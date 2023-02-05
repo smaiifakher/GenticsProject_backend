@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PersonPositions;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class PersonPositionsController extends Controller
@@ -10,76 +11,43 @@ class PersonPositionsController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function index()
+    public function getNumberOfPerson(Request $request)
     {
-        //
+        $query = PersonPositions::select('timestamp')
+                                ->selectRaw('count(person) as number')
+                                ->selectRaw('from_unixtime(timestamp/1000) as datetime')
+                                ->groupBy('timestamp')
+                                ->orderBy('timestamp')
+                                ->get()
+                                ->toArray();
+
+
+        return response()->json($query, 200);
     }
 
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function create()
+    public function getPositionX()
     {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\PersonPositions  $personPositions
-     * @return \Illuminate\Http\Response
-     */
-    public function show(PersonPositions $personPositions)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\PersonPositions  $personPositions
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(PersonPositions $personPositions)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\PersonPositions  $personPositions
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, PersonPositions $personPositions)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\PersonPositions  $personPositions
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(PersonPositions $personPositions)
-    {
-        //
+        $query  = PersonPositions::select('timestamp')
+                                 ->selectRaw('group_concat(pos_x) as positions')
+                                 ->selectRaw('from_unixtime(timestamp/1000) as datetime')
+                                 ->groupBy('timestamp')
+                                 ->orderBy('timestamp')
+                                 ->get()
+                                 ->toArray();
+        $result = [];
+        foreach ($query as $item) {
+            $formattedItem['timestamp'] = $item['timestamp'];
+            $formattedItem['datetime']  = $item['datetime'];
+            $formattedItem['positions'] = explode(',', $item['positions']);
+            $result[]                   = $formattedItem;
+        }
+        return response()->json($result, 200);
     }
 }

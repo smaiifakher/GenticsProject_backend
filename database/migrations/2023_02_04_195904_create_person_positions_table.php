@@ -16,8 +16,8 @@ return new class extends Migration {
             $table->id();
             $table->string('oid',255);
             $table->string('person');
-            $table->float('pos_x')->nullable();
-            $table->float('pos_y')->nullable();
+            $table->string('pos_x')->nullable();
+            $table->string('pos_y')->nullable();
             $table->string('raw_data',255)->nullable();
             $table->string('timestamp');
             $table->timestamps();

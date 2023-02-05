@@ -12,6 +12,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Helper\ProgressBar;
+use Symfony\Component\Console\Output\ConsoleOutput;
 use ZipArchive;
 
 class StoreDataToDB implements ShouldQueue
@@ -35,6 +37,7 @@ class StoreDataToDB implements ShouldQueue
      */
     public function handle()
     {
+        $output     = new ConsoleOutput();
         $zip        = new ZipArchive();
         $fileName   = Storage::disk('local')->path("Work_package-FS.zip");
         $fileOpened = $zip->open($fileName);
@@ -45,57 +48,93 @@ class StoreDataToDB implements ShouldQueue
 
         $filePath = Storage::disk('local')->path("public/Work_package/FilteredDataHuman");
 
-        $fopen     = fopen($filePath, 'r');
-        $size      = fstat($fopen)['size'];
-        $endOfFile = false;
-        while (!$endOfFile) {
-            $length  = min($size, 1000000);
+        $fopen = fopen($filePath, 'r');
+        $size  = fstat($fopen)['size'];
+        // chunk data by 1mb
+        $chunkSize       = 10000;
+        $chunks          = $size / $chunkSize;
+        $progress        = new ProgressBar($output, $chunks);
+        $endOfFile       = false;
+        $currentPosition = $size;
+        $offSet          = 0;
+        while (!$endOfFile && $currentPosition >= 0) {
+            $length  = min($currentPosition, $chunkSize);
             $fread   = fread($fopen, $length);
             $matches = $this->useRegex($fread);
+            if (count($matches) == 0) {
+                break;
+            }
             foreach ($matches as $match) {
                 $count = count($match);
-                for ($i = 0; $i < $count - 1; $i++) {
-                    $array     = substr($fread, $match[$i][1], $match[$i + 1][1] - ($match[$i][1]));
+
+                if ($count > 1) {
+                    for ($i = 0; $i < $count - 1; $i++) {
+                        $array     = substr($fread, $match[$i][1], $match[$i + 1][1] - ($match[$i][1]));
+                        $endOfFile = Str::endsWith($array, ']');
+                        if ($endOfFile) {
+                            $array = rtrim($array, ']');
+                        }
+                        $string = Str::endsWith($array, ',') ? rtrim($array, ',') : $array;
+                        $this->storePosition($string);
+                    }
+
+                    $nextOffset = $match[$count - 1][1];
+                    $progress->advance();
+                    //sleep(1);
+
+                } elseif ($count == 1) {
+
+                    $array     = substr($fread, $match[0][1]);
                     $endOfFile = Str::endsWith($array, ']');
                     if ($endOfFile) {
                         $array = rtrim($array, ']');
                     }
-                    $string    = Str::endsWith($array, ',') ? rtrim($array, ',') : $array;
-                    $json      = json_decode($string, true);
-                    if (!isset($json['timestamp']['$date']['$numberLong'])){
-                        dd($json,$fread,$matches);
-                    }
-                    $timestamp = $json['timestamp']['$date']['$numberLong'];
-                    $oid       = $json['_id']['$oid'];
-                    $instances = Arr::get($json, 'instances');
-                    foreach ($instances as $person => $instance) {
-                        $posX = Arr::get($instance, 'pos_x');
-                        $posY = Arr::get($instance, 'pos_y');
-                        PersonPositions::updateOrCreate([
-                            'person'    => $person,
-                            'oid'       => $oid,
-                            'timestamp' => $timestamp,
-                        ], [
-                            'pos_x'    => $posX,
-                            'pos_y'    => $posY,
-                            'raw_data' => json_encode($instance)
-                        ]);
-                    }
+                    $this->storePosition($array);
+                } else {
+                    break;
                 }
-                $nextOffset = $match[$count - 1][1];
+
             }
-            fseek($fopen, $nextOffset ?? 0);
-            $size -= 1000000;
+
+            $offSet += $nextOffset;
+            fseek($fopen, $offSet);
+
+            $currentPosition -= $nextOffset;
+
         }
-dd($size);
-        dd('hdhdhd');
+        $progress->finish();
+        fclose($filePath);
+        Storage::disk('local')->deleteDirectory('public/Work_package');
+        dd('end');
     }
 
 
     function useRegex($input): array
     {
-        $regex = '/{\n  "timestamp": {\n    "\$date": {[^}]*}\n  },\n  "_id": {[^}]*},\n  "instances": {/im';
+        $regex = '/{\n  "timestamp": {\n    "\$date": {[^}]*}\n  },\n/im';
         preg_match_all($regex, $input, $matches, PREG_OFFSET_CAPTURE);
         return $matches;
+    }
+
+    function storePosition($string)
+    {
+        $json      = json_decode($string, true);
+        $timestamp = $json['timestamp']['$date']['$numberLong'];
+        $oid       = $json['_id']['$oid'];
+
+        $instances = Arr::get($json, 'instances');
+        foreach ($instances as $person => $instance) {
+            $posX = Arr::get($instance, 'pos_x');
+            $posY = Arr::get($instance, 'pos_y');
+            PersonPositions::updateOrCreate([
+                'person'    => $person,
+                'oid'       => $oid,
+                'timestamp' => $timestamp,
+            ], [
+                'pos_x'    => $posX,
+                'pos_y'    => $posY,
+                'raw_data' => json_encode($instance)
+            ]);
+        }
     }
 }
