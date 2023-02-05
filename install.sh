@@ -37,12 +37,6 @@ done
 echo  "]"
 
 
-FILE=public/storage
-if [ ! -h "$FILE" ]; then
-    echo "Linking storage path..."
-    ./vendor/bin/sail artisan storage:link
-fi
-
 echo "Installation successfully!"
 
 echo "Endpoint: http://localhost/"
